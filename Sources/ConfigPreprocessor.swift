@@ -19,10 +19,16 @@ final class VirtualFileSystem {
         self.archives = archives
         for (i, a) in archives.enumerated() {
             let p = VirtualFileSystem.root(of: a)
+            let depth = p.split(separator: "\\").count
+            // Real prefixes are a few levels (z\ace\addons\common); every lookup tries each depth up to the
+            // deepest one registered, so an absurd prefix from a hostile PBO would make all lookups slow.
+            guard depth <= VirtualFileSystem.maxPrefixParts else { continue }
             byPrefix[p, default: []].append(i)
-            maxPrefixDepth = max(maxPrefixDepth, p.split(separator: "\\").count)
+            maxPrefixDepth = max(maxPrefixDepth, depth)
         }
     }
+
+    static let maxPrefixParts = 16
 
     /// A PBO's root in the file system: its `prefix` header, or its file name when it has none
     /// (Arma mounts prefix-less PBOs under their own name).
@@ -71,7 +77,8 @@ final class VirtualFileSystem {
     }
 
     static func decode(_ data: Data) -> String {
-        if data.starts(with: [0xEF, 0xBB, 0xBF]) { return decode(data.dropFirst(3)) }
+        var data = data
+        while data.starts(with: [0xEF, 0xBB, 0xBF]) { data = data.dropFirst(3) }   // a loop: a file can repeat the mark thousands of times
         if data.starts(with: [0xFF, 0xFE]), let s = String(data: data.dropFirst(2), encoding: .utf16LittleEndian) { return s }
         if data.starts(with: [0xFE, 0xFF]), let s = String(data: data.dropFirst(2), encoding: .utf16BigEndian) { return s }
         return String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? String(decoding: data, as: UTF8.self)
@@ -109,9 +116,13 @@ struct ConfigPreprocessor {
         "__GAME_VER__": "02.20.152984", "__GAME_VER_MAJ__": "02", "__GAME_VER_MIN__": "20", "__GAME_BUILD__": "152984",
     ]
     var maxIncludeDepth = 32
+    var maxIncludes = 20_000   // per run: a file that includes itself twice per level would otherwise mean 2^32
     var maxExpansionDepth = 128
     var maxExpansions = 2_000_000
     var maxOutputBytes = 64 << 20
+    /// Per run. Real configs take milliseconds; this cuts off inputs that are slow rather than deep
+    /// (unterminated nested calls, self-including files with huge lines, enormous parameter lists).
+    var maxSeconds: TimeInterval = 3
 
     init(vfs: VirtualFileSystem, hasInclude: ((String) -> Bool)? = nil) {
         self.vfs = vfs
@@ -174,12 +185,28 @@ private final class PreprocessorRun {
     var line = 1
     var counter = 0
     var expansions = 0
+    var includes = 0
     var aborted = false
     lazy var now = Date()
+    let deadline: Date
+    var steps = 0
+    var hasIncludeSet = Set<String>()
 
     init(_ cfg: ConfigPreprocessor) {
         self.cfg = cfg
+        deadline = Date().addingTimeInterval(cfg.maxSeconds)
         for (k, v) in cfg.predefined { define(k, params: nil, body: Array(v.utf8)) }
+    }
+
+    /// True once the run has stopped. Counts work in the hot loops and checks the clock every 1024 steps,
+    /// or every time with `now` for steps that are expensive on their own.
+    func outOfBudget(now: Bool = false) -> Bool {
+        if aborted { return true }
+        steps &+= 1
+        guard now || steps & 0x3FF == 0, Date() > deadline else { return false }
+        diag("time limit", "stopped after \(Int(cfg.maxSeconds)) s")
+        aborted = true
+        return true
     }
 
     func diag(_ kind: String, _ detail: String) {
@@ -213,10 +240,11 @@ private final class PreprocessorRun {
             line = pendingLine
             out.append(contentsOf: expand(pending, [], 0))
             pending.removeAll(keepingCapacity: true)
+            if out.count > cfg.maxOutputBytes, !aborted { diag("output limit", "stopped after \(cfg.maxOutputBytes) bytes"); aborted = true }
         }
 
         var i = 0
-        while i < src.count, !aborted {
+        while i < src.count, !outOfBudget() {
             // One logical line: physical lines joined where a line ends with `\`.
             var logical: [UInt8] = []
             var lines = 0
@@ -383,6 +411,13 @@ private final class PreprocessorRun {
     func include(_ rest: [UInt8], depth: Int) {
         guard let raw = quotedPath(rest) else { diag("malformed #include", text(rest[...]).trimmingCharacters(in: .whitespaces)); return }
         guard depth < cfg.maxIncludeDepth else { diag("include depth limit", raw); return }
+        guard !outOfBudget(now: true) else { return }
+        includes += 1
+        guard includes <= cfg.maxIncludes, out.count <= cfg.maxOutputBytes else {
+            if !aborted { diag("include limit", "stopped at \(raw)") }
+            aborted = true
+            return
+        }
         let dir = file.split(separator: "\\").dropLast().joined(separator: "\\")
         func resolve(_ r: String) -> String {
             VirtualFileSystem.normalize(r.hasPrefix("\\") || r.hasPrefix("/") ? r : dir + "\\" + r)
@@ -442,7 +477,7 @@ private final class PreprocessorRun {
     func hasFile(_ raw: String) -> Bool {
         guard raw.hasPrefix("\\") else { return false }   // the engine requires an absolute path
         let path = VirtualFileSystem.normalize(raw)
-        if !hasIncludes.contains(path) { hasIncludes.append(path) }
+        if hasIncludeSet.insert(path).inserted { hasIncludes.append(path) }
         let alt = PreprocessorRun.utf8Reading(raw).map(VirtualFileSystem.normalize)
         if let ask = cfg.hasInclude { return ask(path) || alt.map(ask) == true }
         return cfg.vfs.exists(path) || alt.map(cfg.vfs.exists) == true
@@ -468,6 +503,7 @@ private final class PreprocessorRun {
         var i = 0
         let n = s.count
         while i < n {
+            if outOfBudget() { o.append(contentsOf: s[i..<n]); break }   // stopped: keep the rest as written
             let c = s[i]
             if c == QUOTE { let j = stringEnd(s, i); o.append(contentsOf: s[i..<j]); i = j; continue }
             if c == NL { if depth == 0 { line += 1 }; o.append(c); i += 1; continue }
@@ -483,6 +519,7 @@ private final class PreprocessorRun {
             if disabled.contains(name) || aborted { o.append(contentsOf: s[i..<j]); i = j; continue }
             if m.params == nil {
                 o.append(contentsOf: m.simple ? rescan(m.body, name, disabled, depth) : rescan(substitute(m, []), name, disabled, depth))
+                checkOutput(o, name)
                 i = j
                 continue
             }
@@ -495,12 +532,29 @@ private final class PreprocessorRun {
                 i = j
                 continue
             }
+            // Arguments are expanded before `rescan` checks depth, so nested calls F(F(F(…))) need their own cap.
+            guard depth < cfg.maxExpansionDepth else {
+                diag("expansion depth limit", name)
+                o.append(contentsOf: s[i..<end])
+                i = end
+                continue
+            }
             let expanded = args.map { expand($0, disabled, depth + 1) }
+            // Stopped while expanding the arguments: substituting now would only multiply what's there.
+            guard !aborted else { o.append(contentsOf: s[i..<end]); i = end; continue }
             o.append(contentsOf: rescan(substitute(m, bind(m, name, expanded)), name, disabled, depth))
+            checkOutput(o, name)
             if depth == 0 { for b in s[k..<end] where b == NL { line += 1 } }
             i = end
         }
         return o
+    }
+
+    /// The output cap counts the block being expanded, not only what earlier blocks wrote.
+    func checkOutput(_ building: [UInt8], _ name: String) {
+        guard out.count + building.count > cfg.maxOutputBytes, !aborted else { return }
+        diag("output limit", "stopped expanding at \(name)")
+        aborted = true
     }
 
     func rescan(_ body: [UInt8], _ name: String, _ disabled: Set<String>, _ depth: Int) -> [UInt8] {
@@ -523,6 +577,7 @@ private final class PreprocessorRun {
         var depth = 1
         var i = open + 1
         while i < s.count {
+            if outOfBudget() { return nil }
             let c = s[i]
             if c == QUOTE {   // strings protect commas, which the engine then drops from them
                 cur.append(c)
@@ -566,6 +621,7 @@ private final class PreprocessorRun {
     func callEnd(_ s: [UInt8], _ open: Int) -> Int? {
         var depth = 0, i = open
         while i < s.count {
+            if outOfBudget() { return nil }
             switch s[i] {
             case QUOTE: i = stringEnd(s, i); continue
             case LP: depth += 1
@@ -689,6 +745,8 @@ private final class PreprocessorRun {
 private struct ExpressionParser {
     let s: [UInt8]
     var i = 0
+    /// Unary operators and parentheses recurse; real `#if` lines nest a few levels, so 64 is plenty.
+    var depth = 0
 
     init(s: [UInt8]) { self.s = s }
 
@@ -751,6 +809,9 @@ private struct ExpressionParser {
     }
 
     mutating func unary() -> Double? {
+        depth += 1
+        defer { depth -= 1 }
+        guard depth <= 64 else { return nil }
         if eat("!") { return unary().map { $0 == 0 ? 1 : 0 } }
         if eat("-") { return unary().map { -$0 } }
         if eat("+") { return unary() }

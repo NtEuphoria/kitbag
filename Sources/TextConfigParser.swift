@@ -34,6 +34,8 @@ private struct Parser {
     var i = 0
     /// Children by lowercased name for every class touched, so reopened classes merge in O(1).
     var index: [ObjectIdentifier: [String: ConfigClass]] = [:]
+    /// Nesting of classes and arrays, capped like RapParser's so a hostile mod file can't overflow the stack.
+    var classDepth = 0, arrayDepth = 0
 
     init(s: [UInt8]) { self.s = s }
 
@@ -122,6 +124,9 @@ private struct Parser {
         if eat(LBRACE) {
             cls.isExternal = false
             if let base { cls.parent = base }
+            classDepth += 1
+            defer { classDepth -= 1 }
+            guard classDepth <= RapParser.maxClassDepth else { throw fail("classes nested deeper than \(RapParser.maxClassDepth)") }
             try body(cls, closed: true)
         } else {
             // `class X;` (or the tolerated `class X: Y;`): a reference to an existing class.
@@ -173,6 +178,9 @@ private struct Parser {
     /// Elements after `{` up to the matching `}`.
     mutating func arrayItems() throws -> [ConfigValue] {
         let openedAt = i - 1
+        arrayDepth += 1
+        defer { arrayDepth -= 1 }
+        guard arrayDepth <= RapParser.maxArrayDepth else { throw fail("arrays nested deeper than \(RapParser.maxArrayDepth)") }
         var items: [ConfigValue] = []
         while true {
             skipSpace()

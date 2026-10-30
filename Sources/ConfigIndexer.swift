@@ -110,7 +110,7 @@ struct IndexStats {
 final class ConfigIndexer {
     /// Bump when RapParser, TextConfigParser, ConfigPreprocessor, PBOArchive, ConfigSummary.make or this
     /// file change what a summary contains.
-    static let parserVersion = 1
+    static let parserVersion = 2
     static let cacheFormat: UInt32 = 2
     private static let magic: UInt32 = 0x5849_424B   // "KBIX"
 
