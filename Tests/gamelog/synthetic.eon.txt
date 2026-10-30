@@ -1,0 +1,31 @@
+[thread ffffffff][I][0]: Log system initialised
+[thread 00000001][I][109]: DLL LOADING: C:\Users\player\Library\Application Support\Steam\steamapps\common\Arma 3\\Arma3Retail_DX11_x64.exe loaded (fully bound) at 0x300000000-0x3024c3600 (sized 38548992 (0x24c3600) bytes)
+[thread 00000002][E][27212]: MessageBoxA( hWnd = 0x0, text = 'Addon 'A3_Language_F_Contact' requires addon 'A3_Data_F_Contact'', caption = 'Arma 3', type = 48 )
+[thread 00000002][E][145900]: MessageBoxA( hWnd = 0x0, text = 'Addon 'tier1_weapons' requires addon 'rhsusf_main'', caption = 'Arma 3', type = 48 )
+[thread 00000002][E][145950]: MessageBoxA( hWnd = 0x0, text = 'Addon 'tier1_weapons' requires addon 'rhsusf_main'', caption = 'Arma 3', type = 48 )
+[thread 00000002][E][146000]: MessageBoxA( hWnd = 0x0, text = 'Addon 'jsrs_soundmod_reloadingsounds' requires addon 'jsrs_soundmod_complete_edition'', caption = 'Arma 3', type = 48 )
+[thread 00000002][E][146100]: MessageBoxA( hWnd = 0x0, text = 'File x\cba\addons\main\config.cpp, line 12: '/CfgPatches/cba_main.requiredAddons': Missing ';' at the end of line', caption = 'Arma 3', type = 48 )
+[thread 00000002][E][146200]: MessageBoxA( hWnd = 0x0, text = 'Out of memory', caption = 'Arma 3', type = 16 )
+[thread 00000011][I][300000]: DLL LOADING: c:\users\player\library\application support\steam\steamapps\workshop\content\107410\463939057\ace_x64.dll loaded (fully bound) at 0x306000000-0x306010000 (sized 65536 (0x10000) bytes)
+[thread 00000011][W][300001]: eON_GetProcAddress() for module 0x306000000, in PE file 'ace_x64.dll' FAILED. Proc not found at name 'RVExtensionArgs'.
+[thread 00000011][I][300050]: DLL LOADING: c:\users\player\library\application support\steam\steamapps\common\arma 3\620260972\aliveclient_x64.dll loaded (fully bound) at 0x307000000-0x307010000 (sized 65536 (0x10000) bytes)
+[thread 00000011][W][300060]: eON_LoadLibraryEx() couldn't load 'C:\Users\player\Library\Application Support\Steam\steamapps\workshop\content\107410\450814997\broken_x64.dll', returning NULL!
+[thread 00000011][W][300070]: eON_LoadLibraryEx() couldn't load 'Dll\tbb4malloc_bi.dll', returning NULL!
+[thread 00000009][I][300100]: Game stdout/err: Error in expression <_x setVariable ["a", 1];>
+  Error position: <setVariable ["a", 1];>
+  Error Undefined variable in expression: _x
+File z\ace\addons\common\functions\fnc_foo.sqf..., line 12
+
+[thread 00000009][I][300101]: Game stdout/err: Warning Message: No entry 'bin\config.bin/CfgWeapons/Foo.scope'.
+[thread 00000009][I][300102]: Game stdout/err: Updating base class RifleCore->Rifle_Base_F, by x\cba\addons\main\config.cpp
+[thread 00000009][I][300110]: [OutputDebugString] Warning Message: Picture x\cba\addons\main\data\foo.paa not found
+[thread 00000009][I][300103]: Game stdout/err: SkyKeyframer::ChangedTbb - Can't use Threading Building Blocks with Static Runtimes (MT, MTd)
+[thread 00000009][I][300104]: Game stdout/err: Current time:  2026/10/26 22:00:31
+[thread 00000009][I][300105]: Game stdout/err: Error in expression <call ALIVE_fnc_x>
+  Error position: <call ALIVE_fnc_x>
+  Error Generic error in expression
+File c:\users\player\library\application support\steam\steamapps\workshop\content\107410\620260972\addons\main\fnc_x.sqf, line 3
+[thread 00000002][W][300200]: RaiseException code=0xc0000005 flags=0
+[thread 00000002][W][300201]: RaiseException code=0x406d1388 flags=0
+[thread 00000002][W][300202]: Unhandled exception caught in the render thread
+[thread 00000002][I][300300]: last line of the session

@@ -1,0 +1,23 @@
+# Build output
+/build/
+/dist/
+Tests/**/run
+
+# Development data from the author's own Arma 3 install: real logs, run notes, research dumps
+Tests/**/agent-report.json
+Tests/**/*.txt
+!Tests/gamelog/synthetic.eon.txt
+Tests/**/*.tsv
+Tests/**/*.lock
+!Tests/indexer/parser.lock
+Tests/**/.stamp-*
+Tests/groundtruth/
+Tests/qol/
+Tests/sigs/known/
+Tests/sigs/debug/
+Tests/sigs/research/
+
+# Planning notes with library-specific numbers
+docs/
+
+.DS_Store

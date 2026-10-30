@@ -1,0 +1,11 @@
+import Foundation
+let game = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Steam/steamapps/common/Arma 3")
+let t0 = Date()
+let r = NativeCheck.fixedReservation(in: GameBuild.native.executable(in: game))
+let dt = Date().timeIntervalSince(t0)
+print("reservation:", r.map { "0x" + String($0.lowerBound, radix: 16) + "..<0x" + String($0.upperBound, radix: 16) } ?? "none", String(format: "(%.0f ms)", dt * 1000))
+print("rosetta exe reservation:", NativeCheck.fixedReservation(in: GameBuild.rosetta.executable(in: game)).map { String($0.lowerBound, radix: 16) } ?? "none")
+let c = NativeCheck.sharedCacheRange()
+print("cache:", c.map { "0x" + String($0.lowerBound, radix: 16) + "..<0x" + String($0.upperBound, radix: 16) } ?? "none")
+print("support:", NativeCheck.support(in: game))
+print("fingerprint:", NativeCheck.fingerprint(of: GameBuild.native.executable(in: game)) ?? "nil")
