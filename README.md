@@ -24,9 +24,9 @@ A native Arma 3 mod manager for macOS. Pick your mods, keep them in playsets, ch
 
 ## Install
 
-Download `Kitbag.dmg` from [Releases](../../releases), open it, and drag Kitbag to Applications. If there's no release yet, [build it from source](#build-from-source); it takes about a minute.
+**[Download Kitbag.dmg](https://github.com/NtEuphoria/kitbag/releases/latest/download/Kitbag.dmg)** (always the latest version), open it, and drag Kitbag to Applications. Release notes are on the [Releases](https://github.com/NtEuphoria/kitbag/releases) page, along with each download's SHA-256 checksum. You can also [build it from source](#build-from-source).
 
-Kitbag isn't notarized by Apple, so macOS blocks it the first time. Open **System Settings → Privacy & Security** and click **Open Anyway**.
+Kitbag isn't notarized by Apple, so macOS blocks it the first time you open it. Open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**.
 
 ## Build from source
 
